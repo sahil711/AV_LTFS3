@@ -2,6 +2,110 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 
+def get_bureau_feats_2(grp):
+    _id,account_df = grp
+    account_df['disb_ratio'] = account_df['correctedDISBURSED-AMT/HIGH CREDIT']/account_df['DisbursalAmount']
+    _dict = {}
+    _dict["individual_accounts"] = (account_df["OWNERSHIP-IND"] == "Individual").sum()
+    _dict["joint_accounts"] = (account_df["OWNERSHIP-IND"] == "Joint").sum()
+    _dict["guarantor_accounts"] = (account_df["OWNERSHIP-IND"] == "Guarantor").sum()
+    _dict["curr_bal_grtr_0"] = (account_df["correctedCURRENT-BAL"] > 0).sum()
+    _dict["num_accounts"] = len(account_df)
+    _dict.update(
+        get_stats(
+            account_df["correctedDISBURSED-AMT/HIGH CREDIT"],
+            "correctedDISBURSED-AMT/HIGH CREDIT",
+        )
+    )
+    _dict.update(get_stats(account_df["correctedCURRENT-BAL"], "correctedCURRENT-BAL"))
+    _dict.update(get_stats(account_df["correctedOVERDUE-AMT"], "correctedOVERDUE-AMT"))
+    _dict["num_closed_accounts"] = (account_df["ACCOUNT-STATUS"] == "Closed").sum()
+    _dict["num_open_accounts"] = (account_df["ACCOUNT-STATUS"] == "Active").sum()
+    _dict["num_delinq_accounts"] = (account_df["ACCOUNT-STATUS"] == "Delinquent").sum()
+    _dict["total_written_off_amount"] = account_df["WRITE-OFF-AMT"].sum()
+    perc_paid_off = (
+        1
+        - account_df["correctedCURRENT-BAL"]
+        / account_df["correctedDISBURSED-AMT/HIGH CREDIT"]
+    )
+    _dict.update(get_stats(perc_paid_off, "percent_paid_off", include_sum=False))
+    _dict.update(get_stats(account_df['disb_ratio'], "disb_ratio"))    
+    
+    _dict["overall_percent_paid_off"] = (
+        1
+        - account_df["correctedCURRENT-BAL"].sum()
+        / account_df["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
+    )
+    tenors = ((account_df["DATE-REPORTED"] - account_df["DISBURSED-DT"]).dt.days).clip(
+        upper=7300
+    )
+    _dict["median_tenor"] = tenors.median()
+    _dict["max_tenor"] = tenors.max()
+    _dict["min_tenor"] = tenors.min()
+    
+    #### ltfs filter
+    is_ltfs = account_df['SELF-INDICATOR']
+    temp = account_df[is_ltfs]
+    _dict["num_accounts_{}".format('is_ltfs')] = len(temp)
+    _dict["total_sanctioned_amount_{}".format('is_ltfs')] = temp[
+        "correctedDISBURSED-AMT/HIGH CREDIT"
+    ].sum()
+    _dict['max_tenor_is_ltfs'] = tenors[is_ltfs].max()
+    _dict['min_tenor_is_ltfs'] = tenors[is_ltfs].min()    
+    _dict["total_curr_bal_{}".format('is_ltfs')] = temp["correctedCURRENT-BAL"].sum()
+    _dict["overall_percentage_paid_off_{}".format('is_ltfs')] = (
+        1
+        - temp["correctedCURRENT-BAL"].sum()
+        / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
+    )
+    
+
+#     loan_ids = [
+#         "Tractor Loan",
+#         "Gold Loan",
+#         "Overdraft"
+#     ]
+#     for loan in loan_ids:
+#         _filter = account_df["ACCT-TYPE"] == loan
+#         temp = account_df[_filter]
+#         _dict["num_accounts_{}".format(loan)] = len(temp)
+#         _dict["total_sanctioned_amount_{}".format(loan)] = temp[
+#             "correctedDISBURSED-AMT/HIGH CREDIT"
+#         ].sum()
+#         _dict["total_curr_bal_{}".format(loan)] = temp["correctedCURRENT-BAL"].sum()
+#         _dict["overall_percentage_paid_off_{}".format(loan)] = (
+#             1
+#             - temp["correctedCURRENT-BAL"].sum()
+#             / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
+#         )
+
+    days_diff = (account_df["DISBURSED-DT"] - account_df["DisbursalDate"]).dt.days
+    _dict.update(
+        get_stats(
+            days_diff[days_diff > 0],
+            "day_start_day_diff_app_vs_other",
+            include_sum=False,
+        )
+    )
+    
+    days_diff = (account_df["MaturityDAte"]-account_df["DISBURSED-DT"]).dt.days
+    _dict.update(
+        get_stats(
+            days_diff[days_diff > 0],
+            "time_delta_anchor_close_vs_start",
+            include_sum=False,
+        )
+    )
+    _dict['num_ltfs_loans'] = account_df['SELF-INDICATOR'].sum()
+    
+#     _dict.update(
+#         get_stats(
+#             (account_df["DISBURSED-DT"] - account_df["DISBURSED-DT"].shift(1)).dt.days,
+#             "days_bw_loans",
+#         )
+#     )
+    _dict["ID"] = _id
+    return _dict
 
 def get_loan_history(data):
     dates = data["date_var"]
