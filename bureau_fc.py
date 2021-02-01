@@ -60,25 +60,42 @@ def get_bureau_feats_2(grp):
     )
     
 
-#     loan_ids = [
-#         "Tractor Loan",
-#         "Gold Loan",
-#         "Overdraft"
-#     ]
-#     for loan in loan_ids:
-#         _filter = account_df["ACCT-TYPE"] == loan
-#         temp = account_df[_filter]
-#         _dict["num_accounts_{}".format(loan)] = len(temp)
-#         _dict["total_sanctioned_amount_{}".format(loan)] = temp[
-#             "correctedDISBURSED-AMT/HIGH CREDIT"
-#         ].sum()
-#         _dict["total_curr_bal_{}".format(loan)] = temp["correctedCURRENT-BAL"].sum()
-#         _dict["overall_percentage_paid_off_{}".format(loan)] = (
-#             1
-#             - temp["correctedCURRENT-BAL"].sum()
-#             / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
-#         )
+    loan_ids = [
+        "Tractor Loan",
+        "Gold Loan",
+        "Overdraft"
+    ]
+    for loan in loan_ids:
+        _filter = account_df["ACCT-TYPE"] == loan
+        temp = account_df[_filter]
+        _dict["num_accounts_{}".format(loan)] = len(temp)
+        _dict["total_sanctioned_amount_{}".format(loan)] = temp[
+            "correctedDISBURSED-AMT/HIGH CREDIT"
+        ].sum()
+        _dict["total_curr_bal_{}".format(loan)] = temp["correctedCURRENT-BAL"].sum()
+        _dict["overall_percentage_paid_off_{}".format(loan)] = (
+            1
+            - temp["correctedCURRENT-BAL"].sum()
+            / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
+        )
 
+    _dict.update(
+        create_payment_history_variables(
+            [x for m in account_df["dpd_strin_var"].tolist() for x in m]
+        )
+    )
+    
+    _dict.update(
+        get_stats(
+            get_int_dpd_str(
+                [x for m in account_df["dpd_strin_var"].tolist() for x in m]
+            ),
+            "dpd_str",
+            include_sum=False,
+        )
+    )
+    
+    
     days_diff = (account_df["DISBURSED-DT"] - account_df["DisbursalDate"]).dt.days
     _dict.update(
         get_stats(
@@ -98,12 +115,12 @@ def get_bureau_feats_2(grp):
     )
     _dict['num_ltfs_loans'] = account_df['SELF-INDICATOR'].sum()
     
-#     _dict.update(
-#         get_stats(
-#             (account_df["DISBURSED-DT"] - account_df["DISBURSED-DT"].shift(1)).dt.days,
-#             "days_bw_loans",
-#         )
-#     )
+    _dict.update(
+        get_stats(
+            (account_df["DISBURSED-DT"] - account_df["DISBURSED-DT"].shift(1)).dt.days,
+            "days_bw_loans",
+        )
+    )
     _dict["ID"] = _id
     return _dict
 
