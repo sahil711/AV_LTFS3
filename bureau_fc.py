@@ -79,21 +79,21 @@ def get_bureau_feats_2(grp):
             / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
         )
 
-    _dict.update(
-        create_payment_history_variables(
-            [x for m in account_df["dpd_strin_var"].tolist() for x in m]
-        )
-    )
+#     _dict.update(
+#         create_payment_history_variables(
+#             [x for m in account_df["dpd_strin_var"].tolist() for x in m]
+#         )
+#     )
     
-    _dict.update(
-        get_stats(
-            get_int_dpd_str(
-                [x for m in account_df["dpd_strin_var"].tolist() for x in m]
-            ),
-            "dpd_str",
-            include_sum=False,
-        )
-    )
+#     _dict.update(
+#         get_stats(
+#             get_int_dpd_str(
+#                 [x for m in account_df["dpd_strin_var"].tolist() for x in m]
+#             ),
+#             "dpd_str",
+#             include_sum=False,
+#         )
+#     )
     
     
     days_diff = (account_df["DISBURSED-DT"] - account_df["DisbursalDate"]).dt.days
