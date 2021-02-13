@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score
-from sklearn.metrics import accuracy_score as scoring_metric
 from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from xgboost import XGBClassifier
@@ -17,6 +16,24 @@ modify the scoring_metric to use custom metric, for not using roc_auc_score
 scoring metric should accept y_true and y_predicted as parameters
 add a functionality to give folds as an iterable
 """
+
+
+def f1(labels, preds):
+    unique = len(np.unique(labels))
+    preds = preds.reshape(unique, -1).T
+    preds = preds.argmax(axis=1)
+    f_score = f1_score(labels, preds, average="macro")
+    return "f1_score", f_score, True
+
+
+def xgb_f1(preds, dtrain):
+    #     unique = len(np.unique(labels))
+    #     print(preds.shape)
+    y = dtrain.get_label()
+    #     print(y.shape)
+    preds = preds.argmax(axis=1)
+    f_score = f1_score(y, preds, average="macro")
+    return "f1_score", -1 * f_score
 
 
 def class_instance(a, b):
@@ -107,7 +124,8 @@ class Estimator(object):
                             (x[train_index], y[train_index]),
                         ],
                         verbose=100,
-                        eval_metric="multi_logloss",
+                        #                         eval_metric="multi_logloss",
+                        eval_metric=f1,
                         early_stopping_rounds=self.early_stopping_rounds,
                     )
 
@@ -118,9 +136,12 @@ class Estimator(object):
                     model.fit(
                         X=x[train_index],
                         y=y[train_index],
-                        eval_set=[(x[test_index], y[test_index])],
-                        verbose=100,
-                        eval_metric="merror",
+                        eval_set=[
+                            (x[test_index], y[test_index]),
+                        ],
+                        verbose=50,
+                        #                         eval_metric="merror",
+                        eval_metric=xgb_f1,
                         early_stopping_rounds=self.early_stopping_rounds,
                     )
 
@@ -236,29 +257,36 @@ class Estimator(object):
             )
         else:
             return np.mean(
-                np.column_stack((est.predict_proba(x) for est in self.fitted_models)), axis=1
+                np.column_stack((est.predict_proba(x) for est in self.fitted_models)),
+                axis=1,
             )
 
     def fit_transform(self, x, y):
         self.fit(x, y, use_oof=True)
-        predictions = np.zeros((x.shape[0],np.unique(y).__len__()))
+        predictions = np.zeros((x.shape[0], np.unique(y).__len__()))
         for i, (train_index, test_index) in enumerate(self.indices):
             if self.model.__class__.__name__ == "LogisticRegression":
-                predictions[test_index] = self.fitted_models[i].predict(x[test_index])
+                predictions[test_index] = self.fitted_models[i].predict_proba(
+                    x[test_index]
+                )
             elif (
                 self.model.__class__.__name__ == "SVC"
                 or self.model.__class__.__name__ == "SVR"
             ):
                 predictions[test_index] = self.fitted_models[i].predict(x[test_index])
             else:
-                predictions[test_index] = self.fitted_models[i].predict_proba(x[test_index])
+                predictions[test_index] = self.fitted_models[i].predict_proba(
+                    x[test_index]
+                )
 
         self.cv_scores = [
-            f1_score(y[test_index], predictions[test_index].argmax(axis = 1),average='macro')
+            f1_score(
+                y[test_index], predictions[test_index].argmax(axis=1), average="macro"
+            )
             for i, (train_index, test_index) in enumerate(self.indices)
         ]
         self.avg_cv_score = np.mean(self.cv_scores)
-        self.overall_cv_score = f1_score(y, predictions.argmax(axis = 1),average='macro')
+        self.overall_cv_score = f1_score(y, predictions.argmax(axis=1), average="macro")
         return predictions
 
     def is_regression(self):

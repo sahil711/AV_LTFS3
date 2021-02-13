@@ -2,9 +2,18 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 
+
+def save_as_csv(filename):
+    data = pd.read_excel(filename, engine="openpyxl")
+    data.to_csv(filename.replace(".xlsx", ".csv"), index=False)
+    print("{} saved as csv".format(filename))
+
+
 def get_bureau_feats_2(grp):
-    _id,account_df = grp
-    account_df['disb_ratio'] = account_df['correctedDISBURSED-AMT/HIGH CREDIT']/account_df['DisbursalAmount']
+    _id, account_df = grp
+    account_df["disb_ratio"] = (
+        account_df["correctedDISBURSED-AMT/HIGH CREDIT"] / account_df["DisbursalAmount"]
+    )
     _dict = {}
     _dict["individual_accounts"] = (account_df["OWNERSHIP-IND"] == "Individual").sum()
     _dict["joint_accounts"] = (account_df["OWNERSHIP-IND"] == "Joint").sum()
@@ -29,8 +38,8 @@ def get_bureau_feats_2(grp):
         / account_df["correctedDISBURSED-AMT/HIGH CREDIT"]
     )
     _dict.update(get_stats(perc_paid_off, "percent_paid_off", include_sum=False))
-    _dict.update(get_stats(account_df['disb_ratio'], "disb_ratio"))    
-    
+    _dict.update(get_stats(account_df["disb_ratio"], "disb_ratio"))
+
     _dict["overall_percent_paid_off"] = (
         1
         - account_df["correctedCURRENT-BAL"].sum()
@@ -42,29 +51,24 @@ def get_bureau_feats_2(grp):
     _dict["median_tenor"] = tenors.median()
     _dict["max_tenor"] = tenors.max()
     _dict["min_tenor"] = tenors.min()
-    
-    #### ltfs filter
-    is_ltfs = account_df['SELF-INDICATOR']
+
+    # ltfs filter
+    is_ltfs = account_df["SELF-INDICATOR"]
     temp = account_df[is_ltfs]
-    _dict["num_accounts_{}".format('is_ltfs')] = len(temp)
-    _dict["total_sanctioned_amount_{}".format('is_ltfs')] = temp[
+    _dict["num_accounts_{}".format("is_ltfs")] = len(temp)
+    _dict["total_sanctioned_amount_{}".format("is_ltfs")] = temp[
         "correctedDISBURSED-AMT/HIGH CREDIT"
     ].sum()
-    _dict['max_tenor_is_ltfs'] = tenors[is_ltfs].max()
-    _dict['min_tenor_is_ltfs'] = tenors[is_ltfs].min()    
-    _dict["total_curr_bal_{}".format('is_ltfs')] = temp["correctedCURRENT-BAL"].sum()
-    _dict["overall_percentage_paid_off_{}".format('is_ltfs')] = (
+    _dict["max_tenor_is_ltfs"] = tenors[is_ltfs].max()
+    _dict["min_tenor_is_ltfs"] = tenors[is_ltfs].min()
+    _dict["total_curr_bal_{}".format("is_ltfs")] = temp["correctedCURRENT-BAL"].sum()
+    _dict["overall_percentage_paid_off_{}".format("is_ltfs")] = (
         1
         - temp["correctedCURRENT-BAL"].sum()
         / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
     )
-    
 
-    loan_ids = [
-        "Tractor Loan",
-        "Gold Loan",
-        "Overdraft"
-    ]
+    loan_ids = ["Tractor Loan", "Gold Loan", "Overdraft"]
     for loan in loan_ids:
         _filter = account_df["ACCT-TYPE"] == loan
         temp = account_df[_filter]
@@ -79,23 +83,22 @@ def get_bureau_feats_2(grp):
             / temp["correctedDISBURSED-AMT/HIGH CREDIT"].sum()
         )
 
-#     _dict.update(
-#         create_payment_history_variables(
-#             [x for m in account_df["dpd_strin_var"].tolist() for x in m]
-#         )
-#     )
-    
-#     _dict.update(
-#         get_stats(
-#             get_int_dpd_str(
-#                 [x for m in account_df["dpd_strin_var"].tolist() for x in m]
-#             ),
-#             "dpd_str",
-#             include_sum=False,
-#         )
-#     )
-    
-    
+    #     _dict.update(
+    #         create_payment_history_variables(
+    #             [x for m in account_df["dpd_strin_var"].tolist() for x in m]
+    #         )
+    #     )
+
+    #     _dict.update(
+    #         get_stats(
+    #             get_int_dpd_str(
+    #                 [x for m in account_df["dpd_strin_var"].tolist() for x in m]
+    #             ),
+    #             "dpd_str",
+    #             include_sum=False,
+    #         )
+    #     )
+
     days_diff = (account_df["DISBURSED-DT"] - account_df["DisbursalDate"]).dt.days
     _dict.update(
         get_stats(
@@ -104,8 +107,8 @@ def get_bureau_feats_2(grp):
             include_sum=False,
         )
     )
-    
-    days_diff = (account_df["MaturityDAte"]-account_df["DISBURSED-DT"]).dt.days
+
+    days_diff = (account_df["MaturityDAte"] - account_df["DISBURSED-DT"]).dt.days
     _dict.update(
         get_stats(
             days_diff[days_diff > 0],
@@ -113,8 +116,8 @@ def get_bureau_feats_2(grp):
             include_sum=False,
         )
     )
-    _dict['num_ltfs_loans'] = account_df['SELF-INDICATOR'].sum()
-    
+    _dict["num_ltfs_loans"] = account_df["SELF-INDICATOR"].sum()
+
     _dict.update(
         get_stats(
             (account_df["DISBURSED-DT"] - account_df["DISBURSED-DT"].shift(1)).dt.days,
@@ -123,6 +126,7 @@ def get_bureau_feats_2(grp):
     )
     _dict["ID"] = _id
     return _dict
+
 
 def get_loan_history(data):
     dates = data["date_var"]
@@ -225,7 +229,7 @@ def get_loan_profile_feats(grp):
 #             "emi_proxy",
 #         )
 #     )
-        
+
 #     account_df['payment_measure_1']=account_df['perc_paid_off']/account_df['tenor']
 #     _dict.update(
 #         get_stats(
@@ -233,12 +237,11 @@ def get_loan_profile_feats(grp):
 #             "payment_measure_1",
 #         )
 #     )
-        
+
 #     _dict["median_tenor"] = account_df['tenor'].median()
 #     _dict["max_tenor"] = account_df['tenor'].max()
 #     _dict["min_tenor"] = account_df['tenor'].min()
-    
-    
+
 
 #     _dict.update(
 #         create_payment_history_variables(
@@ -277,28 +280,28 @@ def get_loan_profile_feats(grp):
 #         _dict["median_tenor_{}".format(col_name)] = temp['tenor'].median()
 #         _dict["max_tenor".format(col_name)] = temp['tenor'].max()
 #         _dict["min_tenor".format(col_name)] = temp['tenor'].min()
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["emi_proxy"],
 #                 "emi_proxy_{}".format(col_name),
 #             )
 #         )
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["perc_paid_off"],
 #                 "perc_paid_off_{}".format(col_name),
 #             )
 #         )
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["payment_measure_1"],
 #                 "payment_measure_1_{}".format(col_name),
 #             )
 #         )
-        
+
 
 #         _dict.update(
 #             get_stats(
@@ -306,15 +309,14 @@ def get_loan_profile_feats(grp):
 #                 "correctedDISBURSED-AMT/HIGH CREDIT_{}".format(col_name),
 #             )
 #         )
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["correctedCURRENT-BAL"],
 #                 "correctedCURRENT-BAL_{}".format(col_name),
 #             )
 #         )
-        
-        
+
 
 #     loan_ids = [
 #         "Tractor Loan",
@@ -332,28 +334,28 @@ def get_loan_profile_feats(grp):
 #         _dict["median_tenor_{}".format(col_name)] = temp['tenor'].median()
 #         _dict["max_tenor".format(col_name)] = temp['tenor'].max()
 #         _dict["min_tenor".format(col_name)] = temp['tenor'].min()
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["emi_proxy"],
 #                 "emi_proxy_{}".format(col_name),
 #             )
 #         )
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["perc_paid_off"],
 #                 "perc_paid_off_{}".format(col_name),
 #             )
 #         )
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["payment_measure_1"],
 #                 "payment_measure_1_{}".format(col_name),
 #             )
 #         )
-        
+
 
 #         _dict.update(
 #             get_stats(
@@ -361,14 +363,14 @@ def get_loan_profile_feats(grp):
 #                 "correctedDISBURSED-AMT/HIGH CREDIT_{}".format(col_name),
 #             )
 #         )
-        
+
 #         _dict.update(
 #             get_stats(
 #                 temp["correctedCURRENT-BAL"],
 #                 "correctedCURRENT-BAL_{}".format(col_name),
 #             )
 #         )
-        
+
 
 #     days_diff = (account_df["DISBURSED-DT"] - account_df["DisbursalDate"]).dt.days
 #     _dict.update(
@@ -386,6 +388,7 @@ def get_loan_profile_feats(grp):
 #     )
 #     _dict["ID"] = account_df["ID"].iloc[0]
 #     return _dict
+
 
 def get_bureau_feats(account_df):
     _dict = {}
@@ -516,14 +519,14 @@ def get_stats(val, name, include_sum=True):
         _dict["mean_" + name] = val.mean()
         _dict["min_" + name] = val.min()
         _dict["max_" + name] = val.max()
-        _dict["std_" + name] = val.std()        
+        _dict["std_" + name] = val.std()
         if include_sum:
             _dict["sum_" + name] = val.sum()
     else:
         _dict["mean_" + name] = 0
         _dict["min_" + name] = 0
         _dict["max_" + name] = 0
-        _dict["std_" + name] = 0        
+        _dict["std_" + name] = 0
         if include_sum:
             _dict["sum_" + name] = 0
 
